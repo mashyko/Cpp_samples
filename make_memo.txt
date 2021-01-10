@@ -1,0 +1,170 @@
+C++ソースコードのコンパイルと実行：
+
+基本ルールとしては、C++ソースのコンパイルにはg++を利用します。例えばhello.cppというファイルをコンパイルする場合は
+
+$ g++ hello.cpp -o hello
+
+と実行するとhelloという実行ファイルが生成されます。これをMakefileを使って書くと次のようになります。Makefileを作成したらmakeとコマンドを実行するだけです。
+//Makefile
+hello: hello.cpp  #ターゲット: 依存ファイル
+    g++ -Wall hello.cpp -o hello  #実行コマンド
+clean:
+    rm -f *.o hello
+
+書式を簡単に説明すると、1行目に生成したいターゲットファイル名: 依存ファイル、2行目に生成するための実行コマンドを記載します。実行コマンドの先頭にはTabを入力する必要があります。Tabではなくspaceを入れてしまうと「Makefile:2: *** 分離記号を欠いています. 中止.」とエラーが出力されてしまうので注意が必要です。
+上のMakefileをgmakeコマンドで実行するとhelloという実行ファイルが生成されます。生成された実行ファイルを消去したい場合はmake cleanと実行するとrm -f *.o helloの箇所が実行されます。g++の-Wallオプションですが、全ての警告オプションを結合してくれるもので一番厳密に文法をチェックします。
+
+複数ファイルの結合
+
+Makefileのターゲットファイル名:依存ファイルという書式の依存ファイル名を複数指定してみます。新たにprint.cppというファイルを定義して以下のようなMakefileに書き換えます。main処理をmain.cppに、mainの中で利用したい関数をprint.cppに記述しています。
+
+//Makefile
+hello: main.cpp function.cpp
+	g++ -Wall main.cpp print.cpp -o hello
+clean:
+	rm -f *.o hello
+
+実は上の書き方はあまり推奨されません。というのもコンパイルの実行が毎回両方のファイルに適用されてしまいます。片方だけupdateを掛けたい時もあり、次の例のように各生成ファイル毎に記述を分離するのが一般的です。makeを実行すると修正された各cppからオブジェクトコードを生成し、最後に実行ファイルにまとめます。
+
+//Makefile
+hello: hello.o print.o
+	g++ -Wall -o hello hello.o print.o 
+print.o: print.cpp
+	g++ -Wall -c print.cpp 
+hello.o: hello.cpp
+	g++ -Wall -c hello.cpp
+clean:
+	rm -f *.o hello
+
+********************
+シンボルと自動変数を使用したMakefile
+
+シンボルと自動変数を使ったMakefileの例を以下に示します。CXXFLAGSで指定している-O2と-pipeはコンパイル最適化レベルとコンパイルを高速にするオプションです。-O0で最適化をしないもので、通常は-O2を指定するようです。-g デバッグオプション。-Wall : コンパイルワーニングのレベルを最大にする。-Wextra : 歴史的理由により-Wallを使用でも抑制される警告を抑制しない。つまり可能な限り全ての警告を出す。
+
+//Makefile
+CXX = g++
+TARGET = hello
+CXXFLAGS = -Wall -O2 -pipe
+SRCS = hello.cpp print.cpp
+OBJS := $(SRCS:.cpp=.o) #SRCSの各ファイルのサフィックスの.cppを.oに変換
+
+$(TARGET): $(OBJS)
+	$(CXX) -o $@ $(OBJS)
+
+clean:
+	rm -f $(TARGET) $(OBJS)
+
+******************************
+ソースコードが以下の様なとき：
+//main.cpp
+
+#include <iostream>
+#include "sub.h"
+using namespace std;
+
+int main() {
+    cout << sub::str << endl;
+    return 0;
+}
+
+//sub.h
+
+namespace sub {
+    extern char str[32];
+}
+
+//sub.cpp
+
+#include "sub.h"
+namespace sub {
+    char str[32] = "Externally defined string.";
+}
+
+Makefile は以下の様になります。
+//Makefile
+
+CC = g++
+CFLAGS = -g -Wall
+
+ALL: main.o sub.o
+    $(CC) $(CFLAGS) -o main main.o sub.o
+
+main.o: main.cpp
+    $(CC) $(CFLAGS) -o main.o -c main.cpp
+
+sub.o: sub.cpp sub.h
+    $(CC) $(CFLAGS) -o sub.o -c sub.cpp
+
+********************
+
+一般的なMakefileの例
+CC            = gcc
+CFLAGS        = -O4 -Wall -I/usr/local/include
+DEST          = /usr/local/bin
+LDFLAGS       = -L/usr/local/lib
+LIBS          = -lhoge -lm
+OBJS          = main.o sub.o
+PROGRAM       = myprogram
+
+all:            $(PROGRAM)
+
+$(PROGRAM):     $(OBJS)
+                $(CC) $(OBJS) $(LDFLAGS) $(LIBS) -o $(PROGRAM)
+
+clean:;         rm -f *.o *~ $(PROGRAM)
+
+install:        $(PROGRAM)
+                install -s $(PROGRAM) $(DEST)
+最初に「○＝○」という記述が多数ありますが， これは後で使う変数の定義と思ってください．
+
+
+************************
+OpenGL のソースコードを macOS でコンパイルするケース
+
+# コンパイラの設定
+CC          := clang
+CXX         := clang++
+
+# その他のコマンドの設定
+RM          := rm
+SH          := bash
+
+# ソースコードの設定 (ファイルを追加する場合はここに足す)
+SRC         := main.cpp
+OBJS        := $(patsubst %.cpp, %.o, $(SRC))
+
+# コンパイラ引数の設定 (インクルード・ディレクトリ等)
+CFLAGS      := -Wall -g -O2 -I/usr/include -I/usr/local/include -I../../support -DGL_SILENCE_DEPRECATION
+CXXFLAGS    := -Wall -g -O2 -std=c++11 -I/usr/include -I/usr/local/include -I../../support -DGL_SILENCE_DEPRECATION
+
+# フレームワークの設定 (Mac特有のもの)
+FRAMEWORKS  := -framework OpenGL -framework Cocoa -framework IOKit -framework CoreVideo
+
+# リンカ引数の設定
+LDFLAGS     := -L/usr/lib -L/usr/local/lib -lglfw3 -lGLEW
+
+#　出来上がるバイナリの名前 (適宜変更する)
+TARGET     := open_window
+
+# allターゲットの設定
+.PHONY: all
+all: $(TARGET)
+
+# ソースコードのコンパイル
+$(OBJS): $(SRC)
+	$(CXX) $(CXXFLAGS) -c $<
+
+# プログラムのリンク
+$(TARGET): $(OBJS)
+	$(CXX) $(LDFLAGS) $(FRAMEWORKS) -o $(TARGET) $^
+
+# プログラムの実行
+.PHONY: run
+run:
+	@./$(TARGET)
+
+# コンパイル結果を削除する
+.PHONY: clean
+clean:
+	@$(RM) $(TARGET) $(OBJS)
+*************************

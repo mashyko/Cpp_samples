@@ -1,0 +1,8 @@
+Xcode を用いた C++ ソースコードのビルドと実行：
+
+Xcode を起動し、「Create a new Xcode project」をクリックして開きます。「macOS」->「Command Line Tool」を選び、「next」に行きます。「product name」に適当なファイル名を書き込んで、「Language」で C++を選択します。新しい画面が登場して、エディターに、開始用のHello World コードが書かれています。この main.cpp コードの内容を消去して、自らのプログラムを書き入れます。
+左上にある三角形の実行ボタンをクリックします。すると、成功すれば、「Build Succeeded」と出て、結果が表示されます。
+
+macOS Big Sur の Xcode 12.1 以降では、
+$ Cmake .. -G Xcode 
+というコマンドではエラーが出ます。

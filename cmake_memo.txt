@@ -1,0 +1,194 @@
+Cmake の利用法
+C/C++のソースコードをビルドするにはMakefileを書いてmakeツールを使うのが一般的です。しかし、Makefileを書くのは大変なので、もっと楽なツールを探すと出てくるものの一つがcmakeです。
+コマンドラインから、 cmake -help と入力して、ヘルプが出れば、インストールが完了しています。
+
+1.  単純なcmakeの使い方
+
+(i) PROJECT_HOMEの下に単一のソースファイルがある場合
+
+${PROJECT_HOME}/
+  main.cpp
+
+の時は以下の2行を書くだけでOK:
+
+cmake_minimum_required(VERSION 3.1)
+project(hello_world CXX) 
+add_executable(main main.cpp)
+
+これをCMakeLists.txtとしてmain.cppと同じディレクトリに置く。1行目のcmake_minimum_required(VERSION 3.1)はCMakeのバージョンを指定するコマンドです。 minimum requiredというと単にCMakeのバージョンが一定以上であるかを確認するだけのように見えますが、実際にはバージョンの確認に加えて暗黙的にcmake_policyコマンドを呼び出し、このCMakeLists.txtをCMake 3.1の仕様で解析するように設定が行われます。 なおCMakeのバージョンがこの条件を満たさないときはエラー終了します。
+2行目のproject(hello_world CXX)はプロジェクト名とプロジェクトで使用するプログラム言語を指定しています。 「このファイルは hello_world というC++プロジェクトの設定ファイルです」と宣言しているわけです。 ここで定義したプロジェクト名は、後々Visual Studioのソリューションファイル名や、Xcodeのプロジェクトファイル名に使われます。
+3行目のadd_executable(main main.cpp)はビルドする実行ファイル名とそれを構成するソースファイルを指定しています。つまり「main.cppを使ってmain_appという名前の実行ファイルを作成する」という宣言です。
+CMakeでは、ビルドの対象になるものつまり実行ファイルやライブラリをターゲットと呼びます。
+
+以下の様にファイルが置かれます。
+${PROJECT_HOME}/
+  main.cpp
+  CMakeLists.txt
+  
+(ii) 複数のソースとヘッダーファイルが存在する場合
+以下の様にファイルがあるときを想定する。
+${PROJECT_HOME}/
+  main.cpp
+  mod.hpp
+  mod_func1.cpp
+  mod_func2.cpp
+
+この場合も同じディレクトリに以下の内容の CMakeLists.txt を追加する。
+cmake_minimum_required(VERSION 3.1)
+add_executable(Main
+  main.cpp
+  mod_func1.cpp
+  mod_func2.cpp
+)
+cpp ファイルの数だけ、add_executable に引数を追加します。ヘッダの依存関係は cmake が勝手に解決してくれる。
+
+2. 複数のソースとヘッダが複数のディレクトリにある場合の Cmake の使用法
+以下の様にファイルが配置されているとする。
+${PROJECT_HOME}/
+  main.cpp
+  mod1.hpp
+  mod1/
+    func1.cpp
+    func2.cpp
+  mod2.hpp
+  mod2/
+    func1.cpp
+    func2.cpp
+
+この場合、
+(i) 単一のCMakeLists.txtを使うとき
+
+${PROJECT_HOME}/
+  CMakeLists.txt 
+  main.cpp
+  mod1.hpp
+  mod1/
+    func1.cpp
+    func2.cpp
+  mod2.hpp
+  mod2/
+    func1.cpp
+    func2.cpp
+
+上述のケースと同様にプロジェクトのディレクトリに、CMakeLists.txtを作る。内容は
+
+cmake_minimum_required(VERSION 3.1)
+add_executable(Main
+  main.cpp
+  mod1/func1.cpp
+  mod1/func2.cpp
+  mod2/func1.cpp
+  mod2/func2.cpp
+)
+のようにする。
+
+(ii) 各ディレクトリにCMakeLists.txtを作るとき
+各ディレクトリにCMakeLists.txtを作る。
+${PROJECT_HOME}/
+  CMakeLists.txt # no.1
+  main.cpp
+  mod1.hpp
+  mod1/
+    CMakeLists.txt  #no.2
+    func1.cpp
+    func2.cpp
+  mod2.hpp
+  mod2/
+    CMakeLists.txt  #no.3
+    func1.cpp
+    func2.cpp
+	
+{PROJECT_HOME}/CMakeLists.txt
+cmake_minimum_required(VERSION 3.1)
+add_subdirectory(mod1)                # <- new
+add_subdirectory(mod2)                # <- new
+add_executable(main main.cpp)
+target_link_libraries(main mod1 mod2) # <- new
+
+mod1/CMakeLists.txt
+cmake_minimum_required(VERSION 3.1)
+add_library(mod1 STATIC
+  func1.cpp
+  func2.cpp
+)
+mod2/CMakeLists.txt
+cmake_minimum_required(VERSION 3.1)
+add_library(mod2 STATIC
+  func1.cpp
+  func2.cpp
+)
+のようにする。
+手間かもしれないが、この方がモジュール化が分りやすいし増えてくると管理が楽になる。
+
+********************
+
+ビルドの仕方
+
+コマンドラインで{PROJECT_HOME}のディレクトリに移動し、以下のコマンドを実行すると、そのディレクトリにプロジェクトファイルが生成されます。
+
+(PROJECT_HOME)$ cmake .
+(PROJECT_HOME)$ make 
+
+ 
+cmakeの後に「.」（カレントディレクトリの指定）は必須ですので、注意して下さい。cmakeは、カレントディレクトリに生成物やキャッシュ等を色々と生成するため、場合によってはディレクトリを汚して嫌なことがあるかもしれません。その場合、先程にディレクトリに例えば「build」のようなディレクトリを作成し、そこへ移動してから、一つ上のディレクトリを渡してcmakeを実行します。以下のような感じです。
+
+$ mkdir build // buildディレクトリを作成
+$ cd build // buildへ移動
+(build)$ cmake .. // build内に色々と生成
+(build)$ make 
+ 
+cmakeの後に「..」を渡します。こちらのほうが利用機会が多いかもしれません。このようにcmakeの引数には、「CMakeLists.txt」のあるディレクトリを渡す。
+
+最後に、make で実行ファイルを作成します。
+
+*********************
+cmake を実行すると、以下の様な表示が出ます。
+(PROJECT_HOME)$ cmake .
+-- Check for working C compiler: /usr/bin/gcc
+-- Check for working C compiler: /usr/bin/gcc -- works
+-- Check size of void*
+-- Check size of void* - done
+-- Check for working CXX compiler: /usr/bin/c++
+-- Check for working CXX compiler: /usr/bin/c++ -- works
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /home/torutk/hello
+(PROJECT_HOME)$　ls
+コマンド実行後、以下のファイルが生成されました。かなり多量のファイルです。
+
+(PROJECT_HOME)/
+  +-- CMakeCache.txt
+  +-- CMakeFiles/
+  |     +-- CMakeCCompiler.cmake
+  |     +-- CMakeCXXCompiler.cmake
+  |     +-- CMakeDirectoryInformation.cmake
+  |     +-- CMakeOutput.log
+  |     +-- CMakeSystem.cmake
+  |     +-- CMakeTmp/
+  |     |     +-- CMakeFiles/
+  |     |           +-- cmTryCompilerExec.dir/
+  |     +-- Makefile.cmake
+  |     +-- cmake.check_cache
+  |     +-- PROJECT_HOME.dir/
+  |     |     +-- DependInfo.cmake
+  |     |     +-- build.make
+  |     |     +-- cmake_clean.cmake
+  |     |     +-- cmake_clean_target.cmake
+  |     |     +-- depend.make
+  |     |     +-- flags.make
+  |     |     +-- progress.make
+  |     +-- progress.make
+  +-- Makefile
+  +-- cmake_install.cmake
+
+makeの実行：
+(PROJECT_HOME)$ make
+Scanning dependencies of target hello
+[100%] Building CXX object CMakeFiles/(PROJECT_HOME).dir/main.o
+Linking CXX executable hello
+[100%] Built target hello
+(PROJECT_HOME)$ 
+実行ファイルが生成されています。
+
+****************
+
