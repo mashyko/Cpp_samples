@@ -2,6 +2,4 @@
 
 Samples of C++ source codes
 
-Samples of MakeFile
-
-Samples of CMakeLIsts.txt
+Samples of MakeFile: Samples of CMakeLists.txt
